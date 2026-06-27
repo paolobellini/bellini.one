@@ -1,0 +1,82 @@
+name: test
+
+on:
+  workflow_call:
+    inputs:
+      php-version:
+        description: php version to install
+        required: false
+        default: '8.4'
+        type: string
+      node-version:
+        description: node version to install
+        required: false
+        default: '24'
+        type: string
+      database:
+        description: laravel db connection / driver (mysql, pgsql)
+        required: false
+        default: 'mysql'
+        type: string
+      db-image:
+        description: docker image for the db service
+        required: false
+        default: 'mysql:8.0'
+        type: string
+      db-port:
+        description: db port (host + container, native to the engine)
+        required: false
+        default: '3306'
+        type: string
+      db-options:
+        description: service container options (health-check command differs per engine)
+        required: false
+        default: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DB_CONNECTION: ${{ inputs.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: ${{ inputs.db-port }}
+      DB_DATABASE: testing
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    services:
+      db:
+        image: ${{ inputs.db-image }}
+        ports:
+          - ${{ inputs.db-port }}:${{ inputs.db-port }}
+        env:
+          # mysql vars (ignored by postgres image)
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: testing
+          # postgres vars (ignored by mysql image)
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: testing
+        options: ${{ inputs.db-options }}
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v7
+
+      - name: setup app
+        uses: ./.github/actions/setup-app
+        with:
+          php-version: ${{ inputs.php-version }}
+          node-version: ${{ inputs.node-version }}
+
+      - name: generate app key
+        run: php artisan key:generate
+
+      - name: run tests
+        run: composer tests

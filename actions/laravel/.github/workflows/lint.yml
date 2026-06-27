@@ -1,0 +1,37 @@
+name: lint & code analysis
+
+on:
+  workflow_call:
+    inputs:
+      php-version:
+        description: php version to install
+        required: false
+        default: '8.4'
+        type: string
+      node-version:
+        description: node version to install
+        required: false
+        default: '24'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v7
+
+      - name: setup app
+        uses: ./.github/actions/setup-app
+        with:
+          php-version: ${{ inputs.php-version }}
+          node-version: ${{ inputs.node-version }}
+
+      - name: run pint + rector dry-run + phpstan
+        run: composer php-checks
+
+      - name: run ci checks
+        run: composer node-checks
