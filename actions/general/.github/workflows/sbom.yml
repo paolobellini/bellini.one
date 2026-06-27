@@ -1,0 +1,60 @@
+name: sbom
+
+on:
+  workflow_call:
+    inputs:
+      project-name:
+        description: dependency-track project name
+        required: true
+        type: string
+      parent:
+        description: dependency-track parent project uuid
+        required: false
+        default: ''
+        type: string
+      environment:
+        description: deployment environment to bind secrets / approvals
+        required: false
+        default: production
+        type: string
+    secrets:
+      DEPENDENCYTRACK_URL:
+        required: true
+      DEPENDENCYTRACK_API_KEY:
+        required: true
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v7
+
+      - name: generate cyclonedx sbom
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: .
+          format: 'cyclonedx'
+          output: 'bom.cdx.json'
+
+      - name: derive release version
+        id: ver
+        run: echo "v=v$(grep -m1 '## \[' CHANGELOG.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" >> "$GITHUB_OUTPUT"
+
+      - name: send sbom to dependency-track
+        uses: DependencyTrack/gh-upload-sbom@v3
+        with:
+          serverHostname: ${{ secrets.DEPENDENCYTRACK_URL }}
+          apiKey: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
+          projectName: ${{ inputs.project-name }}
+          projectVersion: ${{ steps.ver.outputs.v }}
+          autoCreate: true
+          isLatest: true
+          bomFilename: bom.cdx.json
+          parent: ${{ inputs.parent }}
