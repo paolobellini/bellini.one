@@ -1,0 +1,25 @@
+name: vulnerability scanner
+description: trivy filesystem scan, fail on high / critical vulnerabilities
+
+inputs:
+  severity:
+    description: comma-separated severities to fail on
+    required: false
+    default: 'HIGH,CRITICAL'
+  exit-code:
+    description: exit code when vulnerabilities are found (1 = fail)
+    required: false
+    default: '1'
+
+runs:
+  using: composite
+  steps:
+    - name: vulnerability scanner
+      uses: aquasecurity/trivy-action@v0.36.0
+      with:
+        scan-type: 'fs'
+        scan-ref: .
+        ignore-unfixed: true
+        format: 'table'
+        exit-code: ${{ inputs.exit-code }}
+        severity: ${{ inputs.severity }}

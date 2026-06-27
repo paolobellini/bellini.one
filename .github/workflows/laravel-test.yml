@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: setup app
-        uses: ./.github/actions/setup-app
+        uses: paolobellini/bellini.one/actions/laravel/setup-app@v1.0
         with:
           php-version: ${{ inputs.php-version }}
           node-version: ${{ inputs.node-version }}
